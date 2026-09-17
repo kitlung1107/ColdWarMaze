@@ -589,9 +589,15 @@ func buy_lamp(key: String) -> void:
 func pause_ui() -> void:
 	var inner=modal("任務暫停", "文件 %d / 3  ·  已答 %d 題  ·  本局編號 %d" % [file_count(),attempts,maze.seed_value])
 	inner.add_child(button("繼續探索",resume,true))
+	if OS.has_feature("web"):
+		inner.add_child(button("全畫面遊玩",request_fullscreen))
 	inner.add_child(button("玩法說明",func():help_return="play";mode="help";rebuild_ui()))
 	inner.add_child(label("離開本局會重新生成迷宮；已保存的學習紀錄保留。",22,MUTED))
 	inner.add_child(button("結束本局，返回主頁",show_menu))
+
+func request_fullscreen() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("if (typeof window.cwRequestFullscreen === 'function') window.cwRequestFullscreen();")
 
 func help_ui() -> void:
 	var inner=modal("探索手冊", "沒有倒數，可以慢慢閱讀與思考。")
