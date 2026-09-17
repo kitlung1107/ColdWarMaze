@@ -499,21 +499,75 @@ func quiz_ui() -> void:
 		for index in shuffled:
 			categories.add_child(button(question.options[index],func():assign(index),responses[active_row]==index,76))
 	elif question.type=="correct":
-		for i in range(question.items.size()):
-			inner.add_child(button(question.items[i],func():responses[0]=i;rebuild_ui(),responses[0]==i,48))
+		var sentence=RichTextLabel.new()
+		sentence.name="CorrectionSentence"
+		sentence.fit_content=true
+		sentence.scroll_active=false
+		sentence.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		sentence.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		sentence.add_theme_font_size_override("normal_font_size",32)
+		sentence.add_theme_constant_override("line_separation",12)
+		sentence.add_theme_color_override("default_color",TEXT)
+		sentence.meta_underlined=false
+		inner.add_child(sentence)
+		var fragments=correction_fragments()
+		for i in range(fragments.size()):
+			# Leave a small break between underlines, without turning clauses into cards.
+			if i>0:sentence.add_text(" ")
+			sentence.push_meta(i)
+			sentence.push_color(GOLD if responses[0]==i else TEXT)
+			sentence.push_underline()
+			sentence.add_text(fragments[i])
+			sentence.pop()
+			sentence.pop()
+			sentence.pop()
+		sentence.meta_clicked.connect(func(index):select_correction_fragment(int(index)))
+		var reset=button("還原原句",reset_correction,false,48)
+		reset.name="ResetCorrection"
+		reset.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN
+		reset.custom_minimum_size.x=140
+		reset.add_theme_font_size_override("font_size",20)
+		reset.add_theme_color_override("font_color",MUTED)
+		reset.add_theme_stylebox_override("normal",style(PANEL,LINE,1))
+		reset.disabled=responses==[-1,-1]
+		inner.add_child(reset)
 		inner.add_child(label("選擇正確的替代文字：",20,TEAL))
 		var grid=GridContainer.new()
-		grid.columns=2
+		grid.columns=1 if size.x<1000 else 2
+		grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		grid.add_theme_constant_override("h_separation",12)
 		grid.add_theme_constant_override("v_separation",10)
 		inner.add_child(grid)
 		for index in shuffled:
-			grid.add_child(button(question.options[index],func():responses[1]=index;rebuild_ui(),responses[1]==index,64))
+			var replacement=button(question.options[index],func():select_correction_replacement(index),responses[1]==index,64)
+			replacement.disabled=responses[0]<0
+			grid.add_child(replacement)
 	var actions=footer(inner)
 	actions.add_child(label("答題期間探索暫停。",18,MUTED))
 	var submit_button=button("確認答案  →",submit,true,56)
+	submit_button.name="ConfirmAnswer"
 	submit_button.disabled=not complete_response()
 	actions.add_child(submit_button)
+
+func correction_fragments() -> Array:
+	# Preview is derived from the response; the bank remains immutable for grading.
+	var fragments=question.items.duplicate()
+	if responses[0]>=0 and responses[1]>=0:
+		fragments[responses[0]]=question.options[responses[1]]
+	return fragments
+
+func select_correction_fragment(index: int) -> void:
+	if responses[0]!=index:responses=[index,-1]
+	rebuild_ui()
+
+func select_correction_replacement(index: int) -> void:
+	if responses[0]<0:return
+	responses[1]=index
+	rebuild_ui()
+
+func reset_correction() -> void:
+	responses=[-1,-1]
+	rebuild_ui()
 
 func select_order(index: int) -> void:
 	var found=responses.find(index)
