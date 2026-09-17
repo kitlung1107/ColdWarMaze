@@ -157,9 +157,8 @@ func visible(p: Vector2i, from: Vector2i, facing: Vector2i, lamp: String) -> boo
 	if lamp == "wide":
 		allowed = dist <= 4.5
 	elif lamp == "long":
-		var forward = delta.dot(facing)
 		var lateral = absi(delta.x*facing.y-delta.y*facing.x)
-		allowed = allowed or (forward >= 0 and forward <= 7 and lateral <= 1)
+		allowed = allowed or lateral <= 1
 	elif lamp == "scan":
 		allowed = dist <= 3.5
 	if not allowed:

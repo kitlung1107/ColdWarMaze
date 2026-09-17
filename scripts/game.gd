@@ -11,7 +11,7 @@ const MUTED = Color("9eafb0")
 const GOLD = Color("e4b66c")
 const TEAL = Color("77c7b3")
 const RED = Color("e79683")
-const LAMP_NAMES = {"basic":"基本照明", "wide":"廣角燈", "long":"遠射燈", "scan":"穿牆掃描燈"}
+const LAMP_NAMES = {"basic":"基本照明", "wide":"廣角燈", "long":"雙向探照燈", "scan":"穿牆掃描燈"}
 const PRICES = {"wide":3,"long":4,"scan":5}
 const TYPES = {"mc":"史實 MC", "order":"時序排序", "match":"線索配對", "classify":"史實分類", "correct":"史實找錯"}
 var maze = Maze.new()
@@ -600,7 +600,7 @@ func cycle_lamp() -> void:
 
 func shop_ui() -> void:
 	var inner=modal("照明補給", "金幣 %d  ·  已購入的燈本局可無限切換，沒有電池倒數。" % coins)
-	var descriptions={"wide":"照亮附近較大範圍；適合分岔路。牆壁仍會擋光。", "long":"沿面向方向照得更遠；適合長走廊。牆壁仍會擋光。", "scan":"揭開附近牆後的小片區域；適合判斷繞路方向。"}
+	var descriptions={"wide":"照亮附近較大範圍；適合分岔路。牆壁仍會擋光。", "long":"保留基本照明，前後直照通道盡頭；不拐彎，牆壁與未開門會擋光。", "scan":"揭開附近牆後的小片區域；適合判斷繞路方向。"}
 	for key in ["wide","long","scan"]:
 		inner.add_child(label(LAMP_NAMES[key]+"  /  %d 金幣" % PRICES[key],26,GOLD))
 		inner.add_child(label(descriptions[key],22,MUTED))
@@ -642,7 +642,7 @@ func request_fullscreen() -> void:
 
 func help_ui() -> void:
 	var inner=modal("探索手冊", "沒有倒數，可以慢慢閱讀與思考。")
-	for entry in ["目標：走進文件所在格，收集 3 份後到綠色出口。", "移動：觸控方向鍵，或鍵盤 WASD / 方向鍵。調查：右側按鈕、E 或空白鍵。", "普通門：答對保持開啟；答錯先看正確答案及解說，再抽新題。", "寶箱／瞭望塔／捷徑：只有一次機會，答錯後本局鎖定。", "寶箱：答對得 3 金幣，只可買探照燈。瞭望塔：只標示最多兩個寶箱位置。", "迷霧：離開照明範圍便重新覆蓋；已開的門仍保持打開。", "三種燈：廣角看附近、遠射看前方、掃描看牆後；L 鍵或按鈕切換。", "保底路線：所有獎勵都失敗，仍可憑基本照明和普通門完成任務。", "學習紀錄：存在本機；較弱內容會適量重現，換裝置或清除瀏覽器資料不會保留。"]:
+	for entry in ["目標：走進文件所在格，收集 3 份後到綠色出口。", "移動：觸控方向鍵，或鍵盤 WASD / 方向鍵。調查：右側按鈕、E 或空白鍵。", "普通門：答對保持開啟；答錯先看正確答案及解說，再抽新題。", "寶箱／瞭望塔／捷徑：只有一次機會，答錯後本局鎖定。", "寶箱：答對得 3 金幣，只可買探照燈。瞭望塔：只標示最多兩個寶箱位置。", "迷霧：離開照明範圍便重新覆蓋；已開的門仍保持打開。", "三種燈：廣角看附近、雙向探照燈看前後直路、掃描看牆後；L 鍵或按鈕切換。", "保底路線：所有獎勵都失敗，仍可憑基本照明和普通門完成任務。", "學習紀錄：存在本機；較弱內容會適量重現，換裝置或清除瀏覽器資料不會保留。"]:
 		inner.add_child(label(entry,24))
 	footer(inner).add_child(button("返回",func():
 		if help_return=="menu":show_menu()

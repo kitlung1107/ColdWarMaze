@@ -8,6 +8,7 @@ func check(condition: bool,message: String) -> void:
 	if not condition:failures.append(message)
 
 func _initialize() -> void:
+	check_bidirectional_lamp()
 	var door_min=100
 	var door_max=0
 	for seed_number in range(1,251):
@@ -64,3 +65,37 @@ func _initialize() -> void:
 	else:
 		for f in failures:printerr(f)
 		quit(1)
+
+func check_bidirectional_lamp() -> void:
+	for facing in [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP, Vector2i.DOWN]:
+		var m = Maze.new()
+		var origin = Vector2i(15,15)
+		var side = Vector2i(-facing.y,facing.x)
+		for x in range(-12,13):
+			for y in range(-12,13):
+				m.floors[origin+facing*x+side*y] = true
+		for sign_value in [-1,1]:
+			var far = origin+facing*10*sign_value
+			check(m.visible(far,origin,facing,"long"),"both directions beyond seven cells")
+			check(m.visible(far+side,origin,facing,"long"),"existing beam width preserved")
+			check(not m.visible(far+side*2,origin,facing,"long"),"beam does not widen")
+			var barrier = origin+facing*5*sign_value
+			m.doors[barrier] = false
+			check(m.visible(barrier,origin,facing,"long"),"closed door itself visible")
+			check(not m.visible(far,origin,facing,"long"),"closed door blocks beam")
+			m.doors[barrier] = true
+			check(m.visible(far,origin,facing,"long"),"opened door transmits beam")
+			m.doors.erase(barrier)
+			m.floors.erase(barrier)
+			check(not m.visible(far,origin,facing,"long"),"wall blocks beam")
+			m.floors[barrier] = true
+		check(m.visible(origin+side*2,origin,facing,"long"),"basic side illumination preserved")
+		check(not m.visible(origin+side*4,origin,facing,"long"),"no extra lateral reach")
+		# L-shaped corridor: the far side of a corner cannot be illuminated.
+		m.floors.clear()
+		for x in range(9):
+			m.floors[origin+facing*x] = true
+		for y in range(1,6):
+			m.floors[origin+facing*8+side*y] = true
+		check(not m.visible(origin+facing*8+side,origin,facing,"long"),"beam cannot turn a corner within its width")
+		check(not m.visible(origin+facing*8+side*5,origin,facing,"long"),"beam cannot follow a bend")
