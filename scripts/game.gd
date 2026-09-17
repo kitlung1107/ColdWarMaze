@@ -3,6 +3,7 @@ extends Control
 const Maze = preload("res://scripts/maze.gd")
 const Study = preload("res://scripts/study.gd")
 const GameAudio = preload("res://scripts/game_audio.gd")
+const StudentArt = preload("res://scripts/student_art.gd")
 const INK = Color("0b131d")
 const PANEL = Color("111e28")
 const LINE = Color("30424b")
@@ -749,9 +750,8 @@ func _draw() -> void:
 				if maze.doors.has(cell):sprite("door",pos,tile,1 if maze.doors[cell] else 0)
 			if revealed_chests.has(cell) and maze.rewards[cell].state==0 and not visible:
 				sprite("beacon",pos,tile)
-	sprite("player",board_origin+Vector2(player)*tile,tile)
-	var facing_center=board_origin+(Vector2(player)+Vector2(0.5,0.5))*tile
-	draw_line(facing_center+Vector2(facing)*tile*0.35,facing_center+Vector2(facing)*tile*0.52,GOLD,3)
+	StudentArt.draw_beam(self,board_origin+Vector2(player)*tile,tile,facing,maze,board_origin,player,lamp)
+	StudentArt.draw_student(self,board_origin+Vector2(player)*tile,tile,facing)
 	if toast_time>0 and mode=="play":
 		var area=Rect2(190,size.y-85,size.x-380,42)
 		draw_rect(area,Color("1e302f"))
@@ -773,10 +773,12 @@ func draw_tile(cell: Vector2i,pos: Vector2) -> void:
 		draw_rect(Rect2(pos+Vector2(2,tile*0.63),Vector2(tile-4,3)),Color("263941"))
 
 func sprite(kind: String,pos: Vector2,side: float,state: int=0) -> void:
+	if kind=="player":
+		StudentArt.draw_student(self,pos,side,Vector2i.RIGHT)
+		return
 	var pixels=[]
 	var colors={"a":GOLD,"b":Color("77513a"),"c":Color("e9ddba"),"d":TEAL,"e":Color("376962"),"f":Color("111d27"),"r":RED,"s":Color("8a9a99"),"h":Color("31444b")}
 	match kind:
-		"player":pixels=["............","....aaaa....","...aaaaaa...","...bbbbbb...","...bccbcb...","....bbbb....","...dddddd...","..adddddda..","...dddddd...","....eeee....","...ee..ee...","..fff..fff.."]
 		"file":pixels=["............","...cccccc...","...caaaaac..","...caaaaac..","...cbbbbbc..","...caaaaac..","...cbbbbbc..","...caaaaac..","...cbbbccc..","...cccccc...","............","............"]
 		"chest":pixels=["............","............","..bbbbbbbb..",".baaaaaaaab.",".abbbbbbbba.",".aaaaaaaaaa.",".bbbacabbbb.",".bbbacabbbb.",".bbbbbbbbbb.",".aaaaaaaaaa.","............","............"]
 		"tower":pixels=["....dddd....","..ddeeeddd..","..deeeeed...","....dd......","....ss......","...ssss.....","....ss......","....ss......","...ssss.....","..ssssss....","............","............"]
@@ -816,6 +818,7 @@ func draw_menu_art() -> void:
 	draw_rect(Rect2(190,293,144,201),Color("253832"))
 	for i in range(4):
 		draw_rect(Rect2(138-i*16,493+i*16,248+i*32,12),Color("52605c").darkened(float(i)*0.15))
+	StudentArt.draw_beam(self,Vector2(210,398),112,Vector2i.RIGHT)
 	sprite("player",Vector2(210,398),112)
 	sprite("file",Vector2(360,418),64)
 	sprite("chest",Vector2(68,450),72)

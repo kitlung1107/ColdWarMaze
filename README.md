@@ -77,6 +77,8 @@ Godot 網頁版必須透過 HTTP/HTTPS 伺服器載入，不能直接雙擊 `ind
 
 ## 美術與字型
 
+遊戲圖示以提供的參考圖重新構圖，主圖為 `assets/icon.png`，Windows 圖示為 `assets/icon.ico`。網站分頁、Apple 主畫面及網頁 App 圖示位於 `web/`；自動部署會一併複製。手動從 Godot 匯出網站時，亦須把 `web/` 的內容複製到匯出資料夾，或使用 `tools/export_web.ps1 -Godot <Godot執行檔路徑>`。修改圖示來源後可執行 `tools/build_icons.ps1` 重建各尺寸。已加入主畫面的裝置可能需要重新加入，才會更新系統快取的圖示。
+
 像素人物、牆壁、寶箱及地圖物件由專案程式繪製，沒有外部美術依賴。字型 `ArchiveStudySans.otf` 是 Noto Sans CJK TC 的字元子集，使用 SIL Open Font License 1.1，授權條款位於 `assets/FONT_LICENSE.txt`。子集包含現有題庫與介面使用的字元；新增題庫若出現缺字，需更新字型子集或換回完整的開源繁中字型。
 
 Godot Engine 採 MIT 授權；網頁資料夾附引擎授權。歷史題庫的內容沿用教師提供及審閱的教材範圍，其權利不由 Godot 或字型授權決定。
