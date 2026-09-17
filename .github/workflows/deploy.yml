@@ -1,0 +1,79 @@
+name: Build and deploy Godot game
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out game
+        uses: actions/checkout@v4
+
+      - name: Install Godot and matching export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          template_dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$template_dir"
+          unzip -j -q "$RUNNER_TEMP/templates.tpz" 'templates/web_nothreads_debug.zip' 'templates/web_nothreads_release.zip' -d "$template_dir"
+
+      - name: Import assets
+        run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --editor --import --quit
+
+      - name: Test maze and question bank
+        run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_game.gd
+
+      - name: Test complete game flow
+        run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_flow.gd
+
+      - name: Export browser game
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/web"
+          Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --export-release Web "$RUNNER_TEMP/web/index.html"
+          test -s "$RUNNER_TEMP/web/index.html"
+          test -s "$RUNNER_TEMP/web/index.wasm"
+          test -s "$RUNNER_TEMP/web/index.pck"
+          cp assets/FONT_LICENSE.txt "$RUNNER_TEMP/web/FONT_LICENSE.txt"
+          curl --fail --location --retry 3 "https://raw.githubusercontent.com/godotengine/godot/${GODOT_VERSION}-stable/LICENSE.txt" -o "$RUNNER_TEMP/web/GODOT_LICENSE.txt"
+          curl --fail --location --retry 3 "https://raw.githubusercontent.com/godotengine/godot/${GODOT_VERSION}-stable/COPYRIGHT.txt" -o "$RUNNER_TEMP/web/GODOT_THIRD_PARTY.txt"
+          touch "$RUNNER_TEMP/web/.nojekyll"
+
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
