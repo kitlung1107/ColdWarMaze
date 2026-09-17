@@ -2,6 +2,7 @@ extends Control
 
 const Maze = preload("res://scripts/maze.gd")
 const Study = preload("res://scripts/study.gd")
+const GameAudio = preload("res://scripts/game_audio.gd")
 const INK = Color("0b131d")
 const PANEL = Color("111e28")
 const LINE = Color("30424b")
@@ -18,6 +19,7 @@ var study
 var font
 var reading_font: Font
 var pixel_font: FontFile
+var game_audio
 var ui: Control
 var mode = "menu"
 var topic = 0
@@ -58,6 +60,8 @@ var fullscreen_prompt_poll = 0.0
 func _ready() -> void:
 	randomize()
 	test_mode="--qa" in OS.get_cmdline_user_args()
+	game_audio=GameAudio.new()
+	add_child(game_audio)
 	study=Study.new(not test_mode)
 	font=load("res://assets/ArchiveStudySans.otf")
 	reading_font=font
@@ -96,6 +100,8 @@ func update_layout() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	game_audio.exploring=mode=="play" and size.x>=size.y and not test_mode
+	game_audio.reading=mode in ["quiz","feedback"] and size.x>=size.y and not test_mode
 	if mode=="fullscreen_prompt":
 		fullscreen_prompt_poll-=delta
 		if fullscreen_prompt_poll<=0:
@@ -306,6 +312,7 @@ func menu_ui() -> void:
 	ui.add_child(copyright_label)
 
 func start_game(seed_number: int = -1) -> void:
+	play_sound("click")
 	maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
 	player=maze.start
 	facing=Vector2i.RIGHT
@@ -406,12 +413,16 @@ func move(direction: Vector2i) -> void:
 	player=next
 	if maze.files.has(player) and not maze.files[player]:
 		maze.files[player]=true
+		play_sound("file")
 		notify("取得機密文件！ %d / 3" % file_count())
 	if player==maze.finish:
 		if file_count()==3:
 			mode="summary"
+			play_sound("complete")
 			rebuild_ui()
-		else:notify("出口已找到，還需要 %d 份文件。" % (3-file_count()))
+		else:
+			notify("出口已找到，還需要 %d 份文件。" % (3-file_count()))
+			play_sound("exit_hint")
 	elif maze.rewards.has(player):
 		var r=maze.rewards[player]
 		if r.state==0:notify("發現%s，按「調查」挑戰。" % ("寶箱" if r.kind=="chest" else "瞭望塔"))
@@ -523,6 +534,7 @@ func complete_response() -> bool:
 
 func submit() -> void:
 	if not complete_response():return
+	play_sound("click")
 	last_correct=study.is_correct(question,responses)
 	attempts+=1
 	if last_correct:successes+=1
@@ -540,6 +552,7 @@ func submit() -> void:
 			choices.sort_custom(func(a,b):return maze.manhattan(a,p)<maze.manhattan(b,p))
 			for pos in choices.slice(0,2):revealed_chests[pos]=true
 	mode="feedback"
+	play_sound(str(context.kind) if last_correct else "wrong")
 	rebuild_ui()
 
 func solution_text() -> String:
@@ -580,7 +593,9 @@ func cycle_lamp() -> void:
 	if mode!="play":return
 	lamp=owned[(owned.find(lamp)+1)%owned.size()]
 	if owned.size()==1:notify("目前只有基本照明。開寶箱賺金幣後可購買新燈。")
-	else:notify("已切換："+LAMP_NAMES[lamp])
+	else:
+		notify("已切換："+LAMP_NAMES[lamp])
+		play_sound("switch")
 	update_hud()
 
 func shop_ui() -> void:
@@ -599,17 +614,27 @@ func buy_lamp(key: String) -> void:
 		if coins<PRICES[key]:return
 		coins-=PRICES[key]
 		owned.append(key)
+		play_sound("purchase")
+	elif lamp!=key:
+		play_sound("switch")
 	lamp=key
 	rebuild_ui()
 
 func pause_ui() -> void:
 	var inner=modal("任務暫停", "文件 %d / 3  ·  已答 %d 題  ·  本局編號 %d" % [file_count(),attempts,maze.seed_value])
 	inner.add_child(button("繼續探索",resume,true))
+	var audio_options=row(inner)
+	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
+	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
 	if OS.has_feature("web"):
 		inner.add_child(button("全畫面遊玩",request_fullscreen))
 	inner.add_child(button("玩法說明",func():help_return="play";mode="help";rebuild_ui()))
 	inner.add_child(label("離開本局會重新生成迷宮；已保存的學習紀錄保留。",22,MUTED))
 	inner.add_child(button("結束本局，返回主頁",show_menu))
+
+func play_sound(effect_name: String) -> void:
+	if not test_mode:
+		game_audio.play_effect(effect_name)
 
 func request_fullscreen() -> void:
 	if OS.has_feature("web"):

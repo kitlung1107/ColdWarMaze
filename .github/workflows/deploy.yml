@@ -45,6 +45,9 @@ jobs:
       - name: Test complete game flow
         run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_flow.gd
 
+      - name: Test music and sound effects
+        run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_audio.gd
+
       - name: Export browser game
         shell: bash
         run: |
