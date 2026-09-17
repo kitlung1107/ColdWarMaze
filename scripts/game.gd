@@ -16,6 +16,8 @@ const TYPES = {"mc":"史實 MC", "order":"時序排序", "match":"線索配對",
 var maze = Maze.new()
 var study
 var font
+var reading_font: Font
+var pixel_font: FontFile
 var ui: Control
 var mode = "menu"
 var topic = 0
@@ -51,12 +53,17 @@ var test_mode = false
 var help_return = "menu"
 var last_ui_mode = ""
 var last_ui_question = -1
+var fullscreen_prompt_poll = 0.0
 
 func _ready() -> void:
 	randomize()
 	test_mode="--qa" in OS.get_cmdline_user_args()
 	study=Study.new(not test_mode)
 	font=load("res://assets/ArchiveStudySans.otf")
+	reading_font=font
+	pixel_font=load("res://assets/FusionPixel12TC.otf")
+	pixel_font.multichannel_signed_distance_field=false
+	pixel_font.antialiasing=TextServer.FONT_ANTIALIASING_NONE
 	var theme_resource=Theme.new()
 	theme_resource.default_font=font
 	theme_resource.default_font_size=22
@@ -89,6 +96,13 @@ func update_layout() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if mode=="fullscreen_prompt":
+		fullscreen_prompt_poll-=delta
+		if fullscreen_prompt_poll<=0:
+			fullscreen_prompt_poll=0.2
+			if not JavaScriptBridge.eval("window.cwFullscreenPromptOpen === true"):
+				resume()
+				notify("收集 3 份文件。金色普通門可重試；寶箱與塔只有一次機會。",7)
 	time+=delta
 	move_cooldown=maxf(0,move_cooldown-delta)
 	toast_time=maxf(0,toast_time-delta)
@@ -185,6 +199,9 @@ func clear_ui() -> void:
 	action_button=null
 
 func rebuild_ui() -> void:
+	# Keep questions, choices and answer explanations in the original reading font.
+	font=reading_font if mode in ["quiz","feedback"] else pixel_font
+	theme.default_font=font
 	var old_scroll=0
 	var current_question=int(question.get("id",-1))
 	if mode==last_ui_mode and current_question==last_ui_question:
@@ -193,7 +210,7 @@ func rebuild_ui() -> void:
 	clear_ui()
 	update_layout()
 	if mode=="menu": menu_ui()
-	elif mode=="play": play_ui()
+	elif mode in ["play","fullscreen_prompt"]: play_ui()
 	elif mode=="quiz": quiz_ui()
 	elif mode=="feedback": feedback_ui()
 	elif mode=="shop": shop_ui()
@@ -305,6 +322,10 @@ func start_game(seed_number: int = -1) -> void:
 	mode="play"
 	rebuild_ui()
 	notify("收集 3 份文件。金色普通門可重試；寶箱與塔只有一次機會。",7)
+	if OS.has_feature("web") and not test_mode:
+		if JavaScriptBridge.eval("typeof window.cwOfferFullscreen === 'function' && window.cwOfferFullscreen()"):
+			mode="fullscreen_prompt"
+			fullscreen_prompt_poll=0.2
 
 func play_ui() -> void:
 	var top=panel_at(Rect2(20,14,size.x-40,72))
@@ -352,11 +373,6 @@ func play_ui() -> void:
 	action_button=button("調查",interact,true,82)
 	action_panel.add_child(action_button)
 	action_panel.add_child(label("E / 空白鍵\n也可調查",17,MUTED))
-	var foot=label("普通門可重試  ·  獎勵答錯鎖定  ·  離開照明範圍後迷霧重現",18,MUTED)
-	foot.position=Vector2(190,size.y-38)
-	foot.size=Vector2(size.x-380,28)
-	foot.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	ui.add_child(foot)
 	update_hud()
 
 func update_hud() -> void:
