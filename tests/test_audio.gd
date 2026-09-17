@@ -16,6 +16,10 @@ func run() -> void:
 	sound.exploring = true
 	sound._process(1.0)
 	assert(sound.music.playing and is_equal_approx(sound.gain, 0.28))
+	var original_playback = sound.music.get_stream_playback()
+	for frame in range(120):
+		sound._process(1.0 / 60.0)
+	assert(sound.music.get_stream_playback() == original_playback)
 	sound.exploring = false
 	sound.reading = true
 	sound._process(1.0)
@@ -33,11 +37,13 @@ func run() -> void:
 	sound.toggle_music()
 	sound._process(1.0)
 	assert(not sound.music.stream_paused)
+	assert(sound.music.get_stream_playback() == original_playback)
 	sound._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	assert(sound.music.stream_paused and sound.gain == 0.0)
 	sound._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	sound._process(1.0)
 	assert(not sound.music.stream_paused)
+	assert(sound.music.get_stream_playback() == original_playback)
 	print("PASS: music loops, reading ducks without stopping, independent toggles, focus mute/resume; eleven effects loaded.")
 	sound.music.stop()
 	for voice in sound.voices:

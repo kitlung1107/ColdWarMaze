@@ -34,12 +34,17 @@ func _process(delta: float) -> void:
 	var active = (exploring or reading) and music_enabled and app_focused
 	var target = (0.09 if reading else 0.28) if active else 0.0
 	gain = move_toward(gain, target, delta * 0.65)
-	if active and not music.playing:
+	# A paused player still owns its playback. Do not restart it on resume.
+	if active and not music.has_stream_playback():
 		music.play()
-	music.stream_paused = not active and gain <= 0.0
-	if active:
-		music.stream_paused = false
+	# Web Sample playback restarts its source on every unpause call, even
+	# when already playing. Only send actual pause-state transitions.
+	set_music_paused(not active and gain <= 0.0)
 	music.volume_db = linear_to_db(maxf(gain, 0.0001))
+
+func set_music_paused(paused: bool) -> void:
+	if music.stream_paused != paused:
+		music.stream_paused = paused
 
 func play_effect(effect_name: String) -> void:
 	if not effects_enabled or not app_focused or not effects.has(effect_name):
@@ -70,7 +75,7 @@ func _notification(what: int) -> void:
 		gain = 0.0
 		if is_instance_valid(music):
 			music.volume_db = -80.0
-			music.stream_paused = true
+			set_music_paused(true)
 		for voice in voices:
 			voice.stop()
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
