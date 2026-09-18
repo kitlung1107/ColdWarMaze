@@ -30,7 +30,9 @@ func run() -> void:
 		var original=q.items.duplicate()
 		var attempts_before=game.attempts
 		check(game.ui.find_child("ResetCorrection",true,false).disabled,"reset initially disabled")
-		check(game.ui.find_child("ConfirmAnswer",true,false).disabled,"confirm initially disabled")
+		check(not game.ui.find_child("ConfirmAnswer",true,false).disabled,"incomplete confirm accepts reminder")
+		game.ui.find_child("ConfirmAnswer",true,false).pressed.emit()
+		check(game.attempts==attempts_before and game.mode=="quiz","incomplete confirm never grades")
 		game.select_correction_replacement(0)
 		check(game.responses==[-1,-1],"replacement requires fragment")
 		game.select_correction_fragment(0)

@@ -9,14 +9,17 @@ func run() -> void:
 	var sound = GameAudio.new()
 	root.add_child(sound)
 	sound.set_process(false)
-	assert(sound.effects.size() == 11)
+	assert(sound.effects.size() == 26)
+	assert(sound.music.playback_type == AudioServer.PLAYBACK_TYPE_STREAM)
 	assert(is_equal_approx(sound.music.stream.get_length(), 10.0))
 	assert(sound.music.stream.loop_mode == AudioStreamWAV.LOOP_FORWARD)
 	assert(sound.music.stream.loop_end == 441000)
-	sound.exploring = true
+	sound.menu_active = true
 	sound._process(1.0)
 	assert(sound.music.playing and is_equal_approx(sound.gain, 0.28))
 	var original_playback = sound.music.get_stream_playback()
+	sound.menu_active = false
+	sound.exploring = true
 	for frame in range(120):
 		sound._process(1.0 / 60.0)
 	assert(sound.music.get_stream_playback() == original_playback)
@@ -44,7 +47,18 @@ func run() -> void:
 	sound._process(1.0)
 	assert(not sound.music.stream_paused)
 	assert(sound.music.get_stream_playback() == original_playback)
-	print("PASS: music loops, reading ducks without stopping, independent toggles, focus mute/resume; eleven effects loaded.")
+	sound.toggle_effects()
+	for frame in range(300):
+		sound.play_effect("switch")
+		sound._process(1.0 / 60.0)
+	assert(sound.music.get_stream_playback() == original_playback)
+	assert(sound.music.playing and not sound.music.stream_paused)
+	var next_before = sound.next_voice
+	sound.play_effect("incomplete")
+	sound.play_effect("incomplete")
+	assert(sound.next_voice == (next_before + 1) % sound.voices.size())
+	print("PASS: music continuity, 26 effects, spam throttling, independent toggles and focus resume.")
+	original_playback = null
 	sound.music.stop()
 	for voice in sound.voices:
 		voice.stop()

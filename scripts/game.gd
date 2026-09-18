@@ -101,8 +101,9 @@ func update_layout() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	game_audio.menu_active=(mode=="menu" or (mode=="help" and help_return=="menu")) and size.x>=size.y and not test_mode
 	game_audio.exploring=mode=="play" and size.x>=size.y and not test_mode
-	game_audio.reading=mode in ["quiz","feedback"] and size.x>=size.y and not test_mode
+	game_audio.reading=mode in ["quiz","feedback","shop"] and size.x>=size.y and not test_mode
 	if mode=="fullscreen_prompt":
 		fullscreen_prompt_poll-=delta
 		if fullscreen_prompt_poll<=0:
@@ -162,7 +163,7 @@ func label(text_value: String, font_size: int = 24, color: Color = TEXT) -> Labe
 	l.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	return l
 
-func button(text_value: String, action: Callable, selected: bool = false, min_height: int = 54) -> Button:
+func button(text_value: String, action: Callable, selected: bool = false, min_height: int = 54, effect_name: String = "click") -> Button:
 	var b=Button.new()
 	b.text=text_value
 	b.focus_mode=Control.FOCUS_NONE
@@ -178,7 +179,9 @@ func button(text_value: String, action: Callable, selected: bool = false, min_he
 	b.add_theme_stylebox_override("focus",style(Color(0,0,0,0),TEAL))
 	b.add_theme_stylebox_override("disabled",style(Color("131e26"),Color("26343d")))
 	b.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	b.pressed.connect(action)
+	b.pressed.connect(func():
+		if not effect_name.is_empty():play_sound(effect_name)
+		action.call())
 	return b
 
 func box(parent: Node, gap: int = 12) -> VBoxContainer:
@@ -297,15 +300,18 @@ func menu_ui() -> void:
 	selection.add_theme_font_size_override("font_size",24)
 	for t in Study.TOPICS: selection.add_item(t)
 	selection.select(topic)
-	selection.item_selected.connect(func(index):topic=index)
+	selection.item_selected.connect(func(index):topic=index;play_sound("topic"))
 	right.add_child(selection)
-	right.add_child(button("進入迷宮  →",func():start_game(),true,60))
+	right.add_child(button("進入迷宮  →",func():start_game(),true,60,"enter_maze"))
 	var stats=study.stats()
 	right.add_child(label("本機學習紀錄",19,TEAL))
 	right.add_child(label("已練習 %d / 100 題     待重溫 %d 題" % [stats.unique,stats.weak],22))
 	var actions=row(right)
-	actions.add_child(button("玩法說明",func():help_return="menu";mode="help"; rebuild_ui()))
-	actions.add_child(button("重設紀錄",confirm_reset))
+	actions.add_child(button("玩法說明",func():help_return="menu";mode="help"; rebuild_ui(),false,54,"help"))
+	actions.add_child(button("重設紀錄",confirm_reset,false,54,"reset_prompt"))
+	var audio_options=row(right)
+	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
+	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
 	right.add_child(label("不用登入 · 紀錄只存於目前瀏覽器或裝置\n共用裝置可重設。更換網址或瀏覽器不會同步。",18,MUTED))
 	var copyright_label=label("FORM 6  /  HKDSE HISTORY\n100 題・5 種題型・隨機探索",20,TEAL)
 	copyright_label.position=Vector2(40,size.y-86)
@@ -313,7 +319,6 @@ func menu_ui() -> void:
 	ui.add_child(copyright_label)
 
 func start_game(seed_number: int = -1) -> void:
-	play_sound("click")
 	maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
 	player=maze.start
 	facing=Vector2i.RIGHT
@@ -360,7 +365,7 @@ func play_ui() -> void:
 	var symbols=["↑","←","→","↓"]
 	for i in range(4):
 		var direction=directions[i]
-		var b=button(symbols[i],func():pass,false,60)
+		var b=button(symbols[i],func():pass,false,60,"")
 		b.position=positions[i]
 		b.size=Vector2(60,60)
 		for state_name in ["normal","hover","pressed"]:
@@ -375,10 +380,10 @@ func play_ui() -> void:
 	right.add_child(label("照明裝備",19,TEAL))
 	hud_lamp=label(LAMP_NAMES[lamp],23,GOLD)
 	right.add_child(hud_lamp)
-	right.add_child(button("切換燈",cycle_lamp,false,52))
-	right.add_child(button("買燈",func():mode="shop";rebuild_ui(),false,58))
+	right.add_child(button("切換燈",cycle_lamp,false,52,""))
+	right.add_child(button("買燈",func():mode="shop";rebuild_ui(),false,58,"shop_open"))
 	var action_panel=panel_at(Rect2(size.x-166,size.y-170,146,150))
-	action_button=button("調查",interact,true,82)
+	action_button=button("調查",interact,true,82,"")
 	action_panel.add_child(action_button)
 	action_panel.add_child(label("E / 空白鍵\n也可調查",17,MUTED))
 	update_hud()
@@ -404,17 +409,23 @@ func move(direction: Vector2i) -> void:
 	move_cooldown=0.15
 	var next=player+direction
 	if maze.doors.has(next) and not maze.doors[next]:
+		play_sound("locked")
 		begin_question({"kind":"door","position":next})
 		return
 	if maze.rewards.has(next) and maze.rewards[next].kind=="shortcut" and maze.rewards[next].state!=1:
 		if maze.rewards[next].state==0:begin_question({"kind":"shortcut","position":next})
-		else:notify("這扇捷徑已封鎖。普通道路仍然可通行。")
+		else:
+			notify("這扇捷徑已封鎖。普通道路仍然可通行。")
+			play_sound("locked")
 		return
-	if not maze.can_walk(next):return
+	if not maze.can_walk(next):
+		play_sound("bump")
+		return
 	player=next
+	play_sound("footstep")
 	if maze.files.has(player) and not maze.files[player]:
 		maze.files[player]=true
-		play_sound("file")
+		play_sound("files_ready" if file_count()==3 else "file")
 		notify("取得機密文件！ %d / 3" % file_count())
 	if player==maze.finish:
 		if file_count()==3:
@@ -443,6 +454,7 @@ func interact() -> void:
 	notify("附近沒有可挑戰的物件。沿走廊繼續探索。")
 
 func begin_question(target: Dictionary, avoid_id: int = -1) -> void:
+	play_sound("investigate")
 	context=target
 	question=study.pick(topic,avoid_id)
 	prepare_response()
@@ -468,13 +480,13 @@ func quiz_ui() -> void:
 	inner.add_child(label(question.prompt,26))
 	if question.type=="mc":
 		for index in shuffled:
-			inner.add_child(button(question.options[index],func():responses=[index];rebuild_ui(),responses==[index],62))
+			inner.add_child(button(question.options[index],func():responses=[index];rebuild_ui(),responses==[index],62,"select"))
 	elif question.type=="order":
 		inner.add_child(label("依先後逐張點選；再點已選卡片可取消該步及之後次序。",19,TEAL))
 		for index in shuffled:
 			var selected=responses.find(index)
 			var prefix=(str(selected+1)+"  /  ") if selected>=0 else "＋  "
-			inner.add_child(button(prefix+question.items[index],func():select_order(index),selected>=0,60))
+			inner.add_child(button(prefix+question.items[index],func():select_order(index),selected>=0,60,""))
 	elif question.type=="match":
 		inner.add_child(label("先選左邊項目，再點右邊答案。完成全部項目後確認。",19,TEAL))
 		var columns=row(inner,18)
@@ -486,7 +498,7 @@ func quiz_ui() -> void:
 			var selected_text="未選" if responses[i]<0 else question.options[responses[i]]
 			left.add_child(button(question.items[i]+"\n→ "+selected_text,func():active_row=i;rebuild_ui(),i==active_row,74))
 		for index in shuffled:
-			var b=button(question.options[index],func():assign(index),responses[active_row]==index,74)
+			var b=button(question.options[index],func():assign(index),responses[active_row]==index,74,"")
 			if question.type=="match" and index in responses and responses[active_row]!=index:b.disabled=true
 			right.add_child(b)
 	elif question.type=="classify":
@@ -498,7 +510,7 @@ func quiz_ui() -> void:
 		inner.add_child(label(question.items[active_row],30,GOLD))
 		var categories=row(inner,12)
 		for index in shuffled:
-			categories.add_child(button(question.options[index],func():assign(index),responses[active_row]==index,76))
+			categories.add_child(button(question.options[index],func():assign(index),responses[active_row]==index,76,""))
 	elif question.type=="correct":
 		var sentence=RichTextLabel.new()
 		sentence.name="CorrectionSentence"
@@ -540,14 +552,13 @@ func quiz_ui() -> void:
 		grid.add_theme_constant_override("v_separation",10)
 		inner.add_child(grid)
 		for index in shuffled:
-			var replacement=button(question.options[index],func():select_correction_replacement(index),responses[1]==index,64)
+			var replacement=button(question.options[index],func():select_correction_replacement(index),responses[1]==index,64,"")
 			replacement.disabled=responses[0]<0
 			grid.add_child(replacement)
 	var actions=footer(inner)
 	actions.add_child(label("答題期間探索暫停。",18,MUTED))
-	var submit_button=button("確認答案  →",submit,true,56)
+	var submit_button=button("確認答案  →",submit,complete_response(),56,"")
 	submit_button.name="ConfirmAnswer"
-	submit_button.disabled=not complete_response()
 	actions.add_child(submit_button)
 
 func correction_fragments() -> Array:
@@ -558,11 +569,13 @@ func correction_fragments() -> Array:
 	return fragments
 
 func select_correction_fragment(index: int) -> void:
+	play_sound("select")
 	if responses[0]!=index:responses=[index,-1]
 	rebuild_ui()
 
 func select_correction_replacement(index: int) -> void:
 	if responses[0]<0:return
+	play_sound("place")
 	responses[1]=index
 	rebuild_ui()
 
@@ -572,11 +585,13 @@ func reset_correction() -> void:
 
 func select_order(index: int) -> void:
 	var found=responses.find(index)
+	play_sound("select" if found>=0 else "place")
 	if found>=0:responses=responses.slice(0,found)
 	else:responses.append(index)
 	rebuild_ui()
 
 func assign(index: int) -> void:
+	play_sound("place")
 	responses[active_row]=index
 	var next=responses.find(-1)
 	if next>=0:active_row=next
@@ -588,8 +603,9 @@ func complete_response() -> bool:
 	return not responses.has(-1)
 
 func submit() -> void:
-	if not complete_response():return
-	play_sound("click")
+	if not complete_response():
+		play_sound("incomplete")
+		return
 	last_correct=study.is_correct(question,responses)
 	attempts+=1
 	if last_correct:successes+=1
@@ -659,14 +675,15 @@ func shop_ui() -> void:
 	for key in ["wide","long","scan"]:
 		inner.add_child(label(LAMP_NAMES[key]+"  /  %d 金幣" % PRICES[key],26,GOLD))
 		inner.add_child(label(descriptions[key],22,MUTED))
-		var b=button("裝備" if key in owned else "購買並裝備",func():buy_lamp(key),lamp==key,54)
-		b.disabled=key not in owned and coins<PRICES[key]
+		var b=button("裝備" if key in owned else "購買並裝備",func():buy_lamp(key),lamp==key,54,"")
 		inner.add_child(b)
 	footer(inner).add_child(button("返回迷宮",resume))
 
 func buy_lamp(key: String) -> void:
 	if key not in owned:
-		if coins<PRICES[key]:return
+		if coins<PRICES[key]:
+			play_sound("insufficient")
+			return
 		coins-=PRICES[key]
 		owned.append(key)
 		play_sound("purchase")
@@ -683,9 +700,9 @@ func pause_ui() -> void:
 	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
 	if OS.has_feature("web"):
 		inner.add_child(button("全畫面遊玩",request_fullscreen))
-	inner.add_child(button("玩法說明",func():help_return="play";mode="help";rebuild_ui()))
+	inner.add_child(button("玩法說明",func():help_return="play";mode="help";rebuild_ui(),false,54,"help"))
 	inner.add_child(label("離開本局會重新生成迷宮；已保存的學習紀錄保留。",22,MUTED))
-	inner.add_child(button("結束本局，返回主頁",show_menu))
+	inner.add_child(button("結束本局，返回主頁",show_menu,false,54,"back"))
 
 func play_sound(effect_name: String) -> void:
 	if not test_mode:
@@ -701,14 +718,14 @@ func help_ui() -> void:
 		inner.add_child(label(entry,24))
 	footer(inner).add_child(button("返回",func():
 		if help_return=="menu":show_menu()
-		else:resume()))
+		else:resume(),false,54,"back"))
 
 func confirm_reset() -> void:
 	clear_ui()
 	var inner=modal("重設本機學習紀錄？", "這會清除目前裝置的答題次數及弱項紀錄。")
 	inner.add_child(label("適合換另一位同學使用同一部裝置。",26))
 	var actions=footer(inner)
-	actions.add_child(button("取消",show_menu))
+	actions.add_child(button("取消",show_menu,false,54,"back"))
 	actions.add_child(button("確認重設",func():study.reset();show_menu(),true))
 
 func summary_ui() -> void:
@@ -721,8 +738,8 @@ func summary_ui() -> void:
 	inner.add_child(label("下次適量重溫："+("、".join(PackedStringArray(weak.slice(0,5))) if not weak.is_empty() else "本局作答的內容表現穩定。"),23,TEAL))
 	inner.add_child(label("下一局會重新抽取迷宮、文件位置及題目。",23,MUTED))
 	var actions=footer(inner)
-	actions.add_child(button("返回主頁",show_menu))
-	actions.add_child(button("再探索一局  →",func():start_game(),true))
+	actions.add_child(button("返回主頁",show_menu,false,54,"back"))
+	actions.add_child(button("再探索一局  →",func():start_game(),true,54,"enter_maze"))
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO,size),INK)

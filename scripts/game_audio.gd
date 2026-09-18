@@ -1,20 +1,26 @@
 extends Node
 
-const EFFECT_NAMES = ["chest", "door", "tower", "shortcut", "file", "complete", "wrong", "purchase", "switch", "click", "exit_hint"]
+const EFFECT_NAMES = ["chest", "door", "tower", "shortcut", "file", "complete", "wrong", "purchase", "switch", "click", "exit_hint", "enter_maze", "help", "topic", "back", "reset_prompt", "footstep", "bump", "locked", "investigate", "select", "place", "files_ready", "insufficient", "incomplete", "shop_open"]
+const EFFECT_COOLDOWNS = {"footstep": 120, "bump": 350, "locked": 350, "switch": 120, "incomplete": 650, "insufficient": 650, "exit_hint": 1000}
+const EFFECT_DB = {"footstep": -26.0, "bump": -21.0, "locked": -18.0, "select": -21.0, "place": -19.0, "click": -17.0, "switch": -13.0, "exit_hint": -13.0, "incomplete": -15.0, "insufficient": -15.0}
 var music_enabled = true
 var effects_enabled = true
 var exploring = false
 var reading = false
+var menu_active = false
 var app_focused = true
 var gain = 0.0
 var music: AudioStreamPlayer
 var voices: Array[AudioStreamPlayer] = []
 var effects = {}
 var next_voice = 0
-var last_exit_hint_ms = -1000
+var last_effect_ms = {}
 
 func _ready() -> void:
 	music = AudioStreamPlayer.new()
+	# Keep the looping music on the engine mixer. Web Sample playback uses
+	# separate browser sources and recreates them on loop/pause transitions.
+	music.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	var track = load("res://assets/audio/exploration.wav").duplicate() as AudioStreamWAV
 	track.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	track.loop_begin = 0
@@ -31,7 +37,7 @@ func _ready() -> void:
 		voices.append(voice)
 
 func _process(delta: float) -> void:
-	var active = (exploring or reading) and music_enabled and app_focused
+	var active = (menu_active or exploring or reading) and music_enabled and app_focused
 	var target = (0.09 if reading else 0.28) if active else 0.0
 	gain = move_toward(gain, target, delta * 0.65)
 	# A paused player still owns its playback. Do not restart it on resume.
@@ -49,15 +55,14 @@ func set_music_paused(paused: bool) -> void:
 func play_effect(effect_name: String) -> void:
 	if not effects_enabled or not app_focused or not effects.has(effect_name):
 		return
-	if effect_name == "exit_hint":
-		var now = Time.get_ticks_msec()
-		if now - last_exit_hint_ms < 1000:
-			return
-		last_exit_hint_ms = now
+	var now = Time.get_ticks_msec()
+	if now - int(last_effect_ms.get(effect_name, -10000)) < int(EFFECT_COOLDOWNS.get(effect_name, 0)):
+		return
+	last_effect_ms[effect_name] = now
 	var voice = voices[next_voice]
 	next_voice = (next_voice + 1) % voices.size()
 	voice.stream = effects[effect_name]
-	voice.volume_db = -17.0 if effect_name == "click" else -13.0 if effect_name in ["switch", "exit_hint"] else -9.0
+	voice.volume_db = EFFECT_DB.get(effect_name, -9.0)
 	voice.play()
 
 func toggle_music() -> void:

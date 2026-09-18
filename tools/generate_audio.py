@@ -19,6 +19,16 @@ SCORES = {
     "switch": (.20, []),
     "click": (.10, [(79, 0, .055)]),
     "exit_hint": (.62, [(64, 0, .20), (69, .23, .26)]),
+    "footstep": (.10, [(34, 0, .07)]),
+    "bump": (.18, [(39, 0, .12)]),
+    "locked": (.28, [(49, 0, .07), (46, .09, .12)]),
+    "investigate": (.48, [(64, .08, .13), (71, .21, .20)]),
+    "select": (.12, [(79, 0, .075)]),
+    "place": (.20, [(67, 0, .10), (74, .065, .10)]),
+    "files_ready": (1.10, [(69, 0, .16), (72, .16, .16), (76, .32, .18), (83, .54, .42)]),
+    "insufficient": (.44, [(52, 0, .14), (48, .18, .20)]),
+    "incomplete": (.42, [(72, 0, .13), (69, .18, .17)]),
+    "shop_open": (.65, [(43, 0, .10), (55, .10, .12), (64, .24, .25)]),
 }
 
 
@@ -96,8 +106,14 @@ def render_switch():
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("names", nargs="*", choices=list(SCORES))
+    args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, score in SCORES.items():
+    names = args.names or list(SCORES)
+    for name in names:
+        score = SCORES[name]
         samples = render_door() if name == "door" else render_switch() if name == "switch" else render(*score)
         write_wav(OUT / (name + ".wav"), samples)
-    print("Generated", len(SCORES), "original event sounds")
+    print("Generated", len(names), "original event sounds")

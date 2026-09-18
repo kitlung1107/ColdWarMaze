@@ -7,7 +7,7 @@ const config = fs.readFileSync(path.join(__dirname, '../export_presets.cfg'), 'u
 const head = JSON.parse(config.match(/^html\/head_include=(.*)$/m)[1]);
 const scripts = [...head.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
 
-function browser({ua = '', request, enabled, standalone = false} = {}) {
+function browser({ua = '', platform = '', maxTouchPoints = 0, request, enabled, standalone = false} = {}) {
   const ids = {}, events = {}, windowEvents = {};
   let document;
   class Element {
@@ -31,7 +31,7 @@ function browser({ua = '', request, enabled, standalone = false} = {}) {
     matchMedia: () => ({matches: standalone}),
   };
   const context = vm.createContext({document, window,
-    navigator: {userAgent: ua, platform: '', maxTouchPoints: 0},
+    navigator: {userAgent: ua, platform, maxTouchPoints},
     Event: class { constructor(type) { this.type = type; } },
   });
   scripts.forEach(script => vm.runInContext(script, context));
@@ -42,6 +42,22 @@ function browser({ua = '', request, enabled, standalone = false} = {}) {
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 (async () => {
+  // iPad desktop-mode UA must also avoid Safari native fullscreen.
+  for (const device of [{ua: 'iPad'}, {ua: 'iPhone'},
+    {ua: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 5}]) {
+    let requests = 0;
+    const b = browser({...device, enabled: true, request: () => requests++});
+    b.window.cwOfferFullscreen();
+    assert.equal(b.enter.hidden, true);
+    assert.match(b.message.textContent, /輸入提示/);
+    b.window.cwRequestFullscreen(); // Includes the in-game pause menu entry.
+    assert.equal(requests, 0);
+    assert.equal(b.steps.hidden, false);
+    assert.match(b.steps.children[0].textContent, /Safari/);
+  }
+  const mac = browser({platform: 'MacIntel', request() {}});
+  mac.window.cwOfferFullscreen();
+  assert.equal(mac.enter.hidden, false);
   for (const ua of ['iPhone', 'iPad', 'Android', 'Firefox', 'Other browser']) {
     const b = browser({ua});
     assert.equal(b.window.cwOfferFullscreen(), true);
