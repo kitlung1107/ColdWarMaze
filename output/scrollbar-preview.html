@@ -1,0 +1,18 @@
+<div id="scrollbar-preview" aria-label="捲動條粗幼設計預覽">
+<style>
+#scrollbar-preview{font-family:system-ui,sans-serif;color:#e8e4d5;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+#scrollbar-preview .example{background:#111e28;border:1px solid #e4b66c;border-radius:3px;padding:16px;min-width:0}
+#scrollbar-preview h3{font-size:18px;font-weight:500;margin:0 0 16px;color:#e4b66c}
+#scrollbar-preview .area{display:flex;gap:14px;height:230px;overflow:hidden}
+#scrollbar-preview .text{flex:1;min-width:0;font-size:17px;line-height:1.6}
+#scrollbar-preview .option{background:#1a2a33;border:1px solid #30424b;padding:10px;margin:12px 0}
+#scrollbar-preview .track{width:var(--bar-width);flex:none;background:#26343d;border-radius:4px;height:224px}
+#scrollbar-preview .thumb{height:82px;background:#9eafb0;border-radius:4px;margin-top:32px;width:100%}
+#scrollbar-preview .footer{border-top:1px solid #30424b;margin-top:14px;padding-top:12px;color:#77c7b3;font-size:16px}
+</style>
+<section class="example" style="--bar-width:10px"><h3>較幼參考 · 10 px</h3><div class="area"><div class="text">冷戰期間，以下哪項描述正確？<div class="option">閱讀題目及選擇答案</div><div class="option">較長內容可向下捲動</div></div><div class="track" aria-label="10像素寬捲動條示意"><div class="thumb"></div></div></div><div class="footer">確認答案 →</div></section>
+<section class="example" id="proposed-scrollbar" style="--bar-width:16px" aria-label="建議捲動條闊度"><h3>建議 · <span class="width-value">16</span> px</h3><div class="area"><div class="text">冷戰期間，以下哪項描述正確？<div class="option">閱讀題目及選擇答案</div><div class="option">較長內容可向下捲動</div></div><div class="track" aria-label="建議闊度捲動條示意"><div class="thumb"></div></div></div><div class="footer">確認答案 →</div></section>
+<script>
+(()=>{const root=document.getElementById('scrollbar-preview');const panel=root.querySelector('#proposed-scrollbar');const state={width:16};function render(){panel.style.setProperty('--bar-width',state.width+'px');panel.querySelector('.width-value').textContent=state.width;}render();if(globalThis.Tweak){const tweak=new Tweak({container:panel,onChange:render});tweak.addSlider(state,'width',{label:'捲動條闊度',min:12,max:20,step:2,unit:'px'});}})();
+</script>
+</div>

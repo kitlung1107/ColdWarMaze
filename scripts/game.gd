@@ -4,6 +4,7 @@ const Maze = preload("res://scripts/maze.gd")
 const Study = preload("res://scripts/study.gd")
 const GameAudio = preload("res://scripts/game_audio.gd")
 const StudentArt = preload("res://scripts/student_art.gd")
+const TouchScroll = preload("res://scripts/touch_scroll.gd")
 const INK = Color("0b131d")
 const PANEL = Color("111e28")
 const LINE = Color("30424b")
@@ -232,6 +233,8 @@ func rebuild_ui() -> void:
 	last_ui_mode=mode
 	last_ui_question=current_question
 	if size.x<size.y:
+		# The rotate-device cover owns input while exploration/answers are paused.
+		for scroll_area in current_scrolls:scroll_area.set_process_input(false)
 		var cover=ColorRect.new()
 		cover.color=INK
 		cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -266,11 +269,10 @@ func modal(title: String, subtitle: String) -> VBoxContainer:
 	var content=box(outer,8)
 	content.add_child(label(title,30,GOLD))
 	if not subtitle.is_empty(): content.add_child(label(subtitle,19,MUTED))
-	var scroll=ScrollContainer.new()
+	var scroll=TouchScroll.new()
 	scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.add_theme_constant_override("scrollbar_width",10)
 	content.add_child(scroll)
 	var inner=box(scroll,14)
 	inner.set_meta("footer",content)
