@@ -14,7 +14,7 @@ const GOLD = Color("e4b66c")
 const TEAL = Color("77c7b3")
 const RED = Color("e79683")
 const LAMP_NAMES = {"basic":"基本照明", "wide":"廣角燈", "long":"雙向探照燈", "scan":"穿牆掃描燈"}
-const PRICES = {"wide":3,"long":4,"scan":5}
+const PRICES = {"wide":3,"long":6,"scan":9}
 const TYPES = {"mc":"史實 MC", "order":"時序排序", "match":"線索配對", "classify":"史實分類", "correct":"史實找錯"}
 var maze = Maze.new()
 var study
