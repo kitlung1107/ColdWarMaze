@@ -9,18 +9,6 @@ var initial_scroll = 0.0
 var dragged = false
 var scrollbar_finger = -1
 
-func _ready() -> void:
-	var bar = get_v_scroll_bar()
-	bar.custom_minimum_size.x = 16
-	for state in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
-		var skin = StyleBoxFlat.new()
-		skin.bg_color = Color("30424b") if state.begins_with("scroll") else Color("9eafb0")
-		skin.content_margin_left = 8
-		skin.content_margin_right = 8
-		skin.content_margin_top = 8
-		skin.content_margin_bottom = 8
-		bar.add_theme_stylebox_override(state, skin)
-
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():return
 	# Touch-to-mouse emulation must not activate a child a second time, or
