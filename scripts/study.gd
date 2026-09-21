@@ -9,6 +9,7 @@ var recent_concepts = []
 var storage_ok = true
 var enabled_save = true
 var session_seen = []
+var session_correct = []
 var turn = 0
 
 func _init(save_enabled: bool = true) -> void:
@@ -48,13 +49,16 @@ func reset() -> void:
 	recent.clear()
 	recent_concepts.clear()
 	session_seen.clear()
+	session_correct.clear()
 	save_progress()
 
 func pick(topic: int, avoid_id: int = -1) -> Dictionary:
 	var pool=[]
 	for q in bank:
-		if (topic==0 or q.topic=="T"+str(topic)) and q.id!=avoid_id:
+		if (topic==0 or q.topic=="T"+str(topic)) and q.id!=avoid_id and q.id not in session_correct:
 			pool.append(q)
+	if pool.is_empty():
+		return {}
 	var filtered=pool.filter(func(q):return q.id not in recent and q.concept not in recent_concepts)
 	if filtered.is_empty():
 		filtered=pool.filter(func(q):return q.id not in recent)
@@ -71,7 +75,7 @@ func pick(topic: int, avoid_id: int = -1) -> Dictionary:
 	var weights=[]
 	for q in filtered:
 		var record=records.get(str(int(q.id)),{})
-		var weight=3.0 if record.is_empty() else (5.0 if not record.get("last_correct",true) else 1.0)
+		var weight=3.0 if record.is_empty() else (2.0 if not record.get("last_correct",true) else 1.0)
 		if q.id in session_seen:
 			weight*=0.3
 		weights.append(weight)
@@ -93,6 +97,8 @@ func pick(topic: int, avoid_id: int = -1) -> Dictionary:
 	return selected_q
 
 func record(q: Dictionary, correct: bool, responses: Array) -> void:
+	if correct and q.id in session_seen and q.id not in session_correct:
+		session_correct.append(q.id)
 	var key=str(int(q.id))
 	var entry=records.get(key,{"seen":0,"correct":0})
 	entry.seen+=1

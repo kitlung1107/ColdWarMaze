@@ -91,7 +91,7 @@ func run() -> void:
 				root.push_input(click)
 				await settle()
 				check(game.responses[0]==0,"sentence hit testing selects first fragment")
-	print("CHECKED: all 14 correction questions, live preview, switching, reset, immutable grading data, and phone/tablet/desktop layouts.")
+	print("CHECKED: all 22 correction questions, live preview, switching, reset, immutable grading data, and phone/tablet/desktop layouts.")
 	for failure in failures:printerr(failure)
 	print("PASS" if failures.is_empty() else "FAIL")
 	quit(0 if failures.is_empty() else 1)

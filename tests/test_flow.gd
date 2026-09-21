@@ -86,7 +86,22 @@ func run() -> void:
 				game.move(direction)
 			check(game.player==next,"movement failed on solved fallback route")
 	check(game.file_count()==3 and game.mode=="summary","full run did not complete")
-	print("CHECKED: all 100 question interfaces built; chest coins, lamp prices, tower markers, all reward failures, ordinary-door retry and complete three-file extraction.")
+	game.start_game(91024)
+	game.topic=7
+	for item in game.study.bank:
+		if item.topic=="T7":game.study.session_correct.append(item.id)
+	var target_door={"kind":"door","position":game.maze.doors.keys()[0]}
+	game.begin_question(target_door)
+	check(game.mode=="quiz" and game.question.topic!="T7","exhausted topic did not use another topic")
+	game.study.session_correct.clear()
+	for item in game.study.bank:game.study.session_correct.append(item.id)
+	game.begin_question(target_door)
+	check(game.mode=="menu","exhausted bank did not return to menu")
+	game.start_game(91024)
+	check(game.study.session_correct.is_empty(),"new game retained exclusions")
+	game.begin_question(target_door)
+	check(game.mode=="quiz" and game.question.topic=="T7","new game did not restore chosen topic")
+	print("CHECKED: all 400 question interfaces built; chest coins, lamp prices, tower markers, all reward failures, ordinary-door retry and complete three-file extraction.")
 	if failures.is_empty():print("PASS")
 	else:
 		for f in failures:printerr(f)

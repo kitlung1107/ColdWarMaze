@@ -71,7 +71,7 @@ func run() -> void:
 		assert(game.sounds == ["incomplete"])
 		assert(game.attempts == attempts_before and game.mode == "quiz")
 		assert(game.study.records == records_before)
-	print("PASS: shop sound/ducking, insufficient funds guard, 300 lamp presses without double audio, collision, final file, investigation, and all 100 incomplete answers remain ungraded.")
+	print("PASS: shop sound/ducking, insufficient funds guard, 300 lamp presses without double audio, collision, final file, investigation, and all 400 incomplete answers remain ungraded.")
 	game.queue_free()
 	await process_frame
 	quit()

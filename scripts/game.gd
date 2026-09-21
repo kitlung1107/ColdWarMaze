@@ -308,7 +308,7 @@ func menu_ui() -> void:
 	right.add_child(button("進入迷宮  →",func():start_game(),true,60,"enter_maze"))
 	var stats=study.stats()
 	right.add_child(label("本機學習紀錄",19,TEAL))
-	right.add_child(label("已練習 %d / 100 題     待重溫 %d 題" % [stats.unique,stats.weak],22))
+	right.add_child(label("已練習 %d / %d 題     待重溫 %d 題" % [stats.unique,study.bank.size(),stats.weak],22))
 	var actions=row(right)
 	actions.add_child(button("玩法說明",func():help_return="menu";mode="help"; rebuild_ui(),false,54,"help"))
 	actions.add_child(button("重設紀錄",confirm_reset,false,54,"reset_prompt"))
@@ -316,7 +316,7 @@ func menu_ui() -> void:
 	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
 	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
 	right.add_child(label("不用登入 · 紀錄只存於目前瀏覽器或裝置\n共用裝置可重設。更換網址或瀏覽器不會同步。",18,MUTED))
-	var copyright_label=label("FORM 6  /  HKDSE HISTORY\n100 題・5 種題型・隨機探索",20,TEAL)
+	var copyright_label=label("FORM 6  /  HKDSE HISTORY\n%d 題・5 種題型・隨機探索" % study.bank.size(),20,TEAL)
 	copyright_label.position=Vector2(40,size.y-86)
 	copyright_label.size=Vector2(size.x*0.4,65)
 	ui.add_child(copyright_label)
@@ -332,6 +332,7 @@ func start_game(seed_number: int = -1) -> void:
 	study.recent.clear()
 	study.recent_concepts.clear()
 	study.session_seen.clear()
+	study.session_correct.clear()
 	attempts=0
 	successes=0
 	elapsed=0
@@ -460,6 +461,17 @@ func begin_question(target: Dictionary, avoid_id: int = -1) -> void:
 	play_sound("investigate")
 	context=target
 	question=study.pick(topic,avoid_id)
+	if question.is_empty() and topic!=0:
+		question=study.pick(0,avoid_id)
+		if not question.is_empty():
+			notify("本主題已全部答對，繼續挑戰其他主題。")
+	# If the only remaining question is the failed one, allow a retry.
+	if question.is_empty() and avoid_id!=-1:
+		question=study.pick(0)
+	if question.is_empty():
+		show_menu()
+		notify("本局全部 %d 題已答對！可開始新一局。" % study.bank.size())
+		return
 	prepare_response()
 	mode="quiz"
 	rebuild_ui()

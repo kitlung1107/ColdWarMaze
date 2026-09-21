@@ -37,7 +37,9 @@ func _initialize() -> void:
 		check(not m.visible(m.start+Vector2i(8,0),m.start,Vector2i.RIGHT,"basic"),"fog not covering distance")
 		check(m.visible(m.start+Vector2i(3,0),m.start,Vector2i.RIGHT,"scan"),"scan must reveal through walls")
 	var study=Study.new(false)
-	check(study.bank.size()==100,"100 questions loaded")
+	check(study.bank.size()==400,"400 questions loaded")
+	for topic_number in range(1,9):
+		check(study.bank.filter(func(item):return item.topic=="T"+str(topic_number)).size()==50,"50 questions per topic")
 	for q in study.bank:
 		var correct=[int(q.correct)] if q.type=="mc" else Array(q.correct)
 		check(study.is_correct(q,correct),"correct answer rejected q%d" % q.id)
@@ -58,7 +60,7 @@ func _initialize() -> void:
 	study.record(q,true,[int(q.correct)])
 	check(study.records["1"].seen==2 and study.records["1"].correct==1,"performance counts")
 	print("CHECKED: 250 random mazes; 3 files + exit reachable after all reward failures; %d–%d ordinary doors on fallback task routes." % [door_min,door_max])
-	print("CHECKED: 100 question answer keys, 320 topic draws, no immediate repeats, fog radius, scan light, performance records.")
+	print("CHECKED: 400 question answer keys, 320 topic draws, no immediate repeats, fog radius, scan light, performance records.")
 	if failures.is_empty():
 		print("PASS")
 		quit(0)
