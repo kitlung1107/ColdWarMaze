@@ -316,7 +316,7 @@ func menu_ui() -> void:
 	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
 	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
 	right.add_child(label("不用登入 · 紀錄只存於目前瀏覽器或裝置\n共用裝置可重設。更換網址或瀏覽器不會同步。",18,MUTED))
-	var copyright_label=label("FORM 6  /  HKDSE HISTORY\n%d 題・5 種題型・隨機探索" % study.bank.size(),20,TEAL)
+	var copyright_label=label("Senior Form  /  HKDSE HISTORY\n%d 題・5 種題型・隨機探索" % study.bank.size(),20,TEAL)
 	copyright_label.position=Vector2(40,size.y-86)
 	copyright_label.size=Vector2(size.x*0.4,65)
 	ui.add_child(copyright_label)
