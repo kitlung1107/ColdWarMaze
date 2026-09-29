@@ -58,6 +58,12 @@ var help_return = "menu"
 var last_ui_mode = ""
 var last_ui_question = -1
 var fullscreen_prompt_poll = 0.0
+var linked_scope = ""
+var linked_poll = 0.0
+var linked_ready = false
+
+func account_ready() -> bool:
+	return not OS.has_feature("web") or (linked_ready and JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()") == true)
 
 func _ready() -> void:
 	randomize()
@@ -102,6 +108,22 @@ func update_layout() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if OS.has_feature("web"):
+		linked_poll-=delta
+		if linked_poll<=0:
+			linked_poll=0.5
+			linked_ready=JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()") == true
+			if linked_ready:
+				var scope=str(JavaScriptBridge.eval("window.HistoryGame.identity().scope"))
+				if linked_scope!=scope:
+					linked_scope=scope
+					study=Study.new(true)
+					show_menu()
+		if not linked_ready:
+			game_audio.menu_active=false
+			game_audio.exploring=false
+			game_audio.reading=false
+			return
 	game_audio.menu_active=(mode=="menu" or (mode=="help" and help_return=="menu")) and size.x>=size.y and not test_mode
 	game_audio.exploring=mode=="play" and size.x>=size.y and not test_mode
 	game_audio.reading=mode in ["quiz","feedback","shop"] and size.x>=size.y and not test_mode
@@ -127,6 +149,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	if not account_ready():return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if mode=="play":
 			if event.keycode in [KEY_W,KEY_UP]:move(Vector2i.UP)
@@ -283,6 +306,8 @@ func footer(inner: Control) -> HBoxContainer:
 	return row(inner.get_meta("footer"),12)
 
 func show_menu() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.HistoryGame && window.HistoryGame.end('abandoned')")
 	mode="menu"
 	rebuild_ui()
 
@@ -315,13 +340,16 @@ func menu_ui() -> void:
 	var audio_options=row(right)
 	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
 	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
-	right.add_child(label("不用登入 · 紀錄只存於目前瀏覽器或裝置\n共用裝置可重設。更換網址或瀏覽器不會同步。",18,MUTED))
+	right.add_child(label("已連結探索館 · 完成各局會保存結果與錯題\n同步狀態及登入身分見遊戲上方；共用裝置用完請登出。" if OS.has_feature("web") else "離線版 · 學習紀錄只存於目前裝置。",18,MUTED))
 	var copyright_label=label("Senior Form  /  HKDSE HISTORY\n%d 題・5 種題型・隨機探索" % study.bank.size(),20,TEAL)
 	copyright_label.position=Vector2(40,size.y-86)
 	copyright_label.size=Vector2(size.x*0.4,65)
 	ui.add_child(copyright_label)
 
 func start_game(seed_number: int = -1) -> void:
+	if not account_ready():return
+	if OS.has_feature("web"):
+		if JavaScriptBridge.eval("window.HistoryGame.start()") != true:return
 	maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
 	player=maze.start
 	facing=Vector2i.RIGHT
@@ -408,6 +436,7 @@ func notify(message: String, duration: float = 4.0) -> void:
 	toast_time=duration
 
 func move(direction: Vector2i) -> void:
+	if not account_ready():return
 	if mode!="play" or size.x<size.y:return
 	facing=direction
 	move_cooldown=0.15
@@ -445,6 +474,7 @@ func move(direction: Vector2i) -> void:
 	update_hud()
 
 func interact() -> void:
+	if not account_ready():return
 	if mode!="play":return
 	var targets=[player,player+facing,player+Vector2i.UP,player+Vector2i.RIGHT,player+Vector2i.DOWN,player+Vector2i.LEFT]
 	for p in targets:
@@ -618,6 +648,8 @@ func complete_response() -> bool:
 	return not responses.has(-1)
 
 func submit() -> void:
+	if not account_ready():return
+	if mode!="quiz":return
 	if not complete_response():
 		play_sound("incomplete")
 		return
@@ -729,7 +761,8 @@ func request_fullscreen() -> void:
 
 func help_ui() -> void:
 	var inner=modal("探索手冊", "沒有倒數，可以慢慢閱讀與思考。")
-	for entry in ["目標：走進文件所在格，收集 3 份後到綠色出口。", "移動：觸控方向鍵，或鍵盤 WASD / 方向鍵。調查：右側按鈕、E 或空白鍵。", "普通門：答對保持開啟；答錯先看正確答案及解說，再抽新題。", "寶箱／瞭望塔／捷徑：只有一次機會，答錯後本局鎖定。", "寶箱：答對得 3 金幣，只可買探照燈。瞭望塔：只標示最多兩個寶箱位置。", "迷霧：離開照明範圍便重新覆蓋；已開的門仍保持打開。", "三種燈：廣角看附近、雙向探照燈看前後直路、掃描看牆後；L 鍵或按鈕切換。", "保底路線：所有獎勵都失敗，仍可憑基本照明和普通門完成任務。", "學習紀錄：存在本機；較弱內容會適量重現，換裝置或清除瀏覽器資料不會保留。"]:
+	var learning_help="本機抽題紀錄按登入身分分開；成功完成各局的結果與錯題另存探索館，見遊戲上方同步狀態。" if OS.has_feature("web") else "學習紀錄：存在本機；較弱內容會適量重現，換裝置或清除資料不會保留。"
+	for entry in ["目標：走進文件所在格，收集 3 份後到綠色出口。", "移動：觸控方向鍵，或鍵盤 WASD / 方向鍵。調查：右側按鈕、E 或空白鍵。", "普通門：答對保持開啟；答錯先看正確答案及解說，再抽新題。", "寶箱／瞭望塔／捷徑：只有一次機會，答錯後本局鎖定。", "寶箱：答對得 3 金幣，只可買探照燈。瞭望塔：只標示最多兩個寶箱位置。", "迷霧：離開照明範圍便重新覆蓋；已開的門仍保持打開。", "三種燈：廣角看附近、雙向探照燈看前後直路、掃描看牆後；L 鍵或按鈕切換。", "保底路線：所有獎勵都失敗，仍可憑基本照明和普通門完成任務。", learning_help]:
 		inner.add_child(label(entry,24))
 	footer(inner).add_child(button("返回",func():
 		if help_return=="menu":show_menu()
@@ -738,12 +771,14 @@ func help_ui() -> void:
 func confirm_reset() -> void:
 	clear_ui()
 	var inner=modal("重設本機學習紀錄？", "這會清除目前裝置的答題次數及弱項紀錄。")
-	inner.add_child(label("適合換另一位同學使用同一部裝置。",26))
+	inner.add_child(label("只重設目前身分的本機抽題紀錄，探索館場次會保留。\n換同學使用請先登出探索館。" if OS.has_feature("web") else "只重設目前裝置的學習紀錄。",26))
 	var actions=footer(inner)
 	actions.add_child(button("取消",show_menu,false,54,"back"))
 	actions.add_child(button("確認重設",func():study.reset();show_menu(),true))
 
 func summary_ui() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.HistoryGame && window.HistoryGame.end('completed')")
 	var inner=modal("檔案已成功帶出", "三份文件已集齊，這一趟任務完成。")
 	inner.add_child(label("3 / 3",64,GOLD))
 	inner.add_child(label("本局答題 %d 次  ·  答對 %d 次\n探索約 %d 分鐘（不計答題及暫停）" % [attempts,successes,int(elapsed/60)],28))

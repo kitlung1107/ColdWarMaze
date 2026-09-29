@@ -39,6 +39,11 @@ jobs:
       - name: Import assets
         run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --editor --import --quit
 
+      - name: Verify museum game protocol and bank version
+        run: |
+          node tools/prepare_game_integration.cjs --check
+          node tests/test_history_bridge.cjs
+
       - name: Test maze and question bank
         run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_game.gd
 

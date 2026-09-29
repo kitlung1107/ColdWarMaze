@@ -21,7 +21,7 @@ func _init(save_enabled: bool = true) -> void:
 func load_progress() -> void:
 	var raw = ""
 	if OS.has_feature("web"):
-		raw = str(JavaScriptBridge.eval("(function(){try{return localStorage.getItem('coldwar-study-v1')||''}catch(e){return ''}})()"))
+		raw = str(JavaScriptBridge.eval("window.HistoryGame ? window.HistoryGame.progress() : ''"))
 	elif FileAccess.file_exists(SAVE_PATH):
 		raw=FileAccess.get_file_as_string(SAVE_PATH)
 	var parsed=JSON.parse_string(raw) if not raw.is_empty() else null
@@ -36,7 +36,7 @@ func save_progress() -> void:
 		return
 	var raw=JSON.stringify({"version":1,"records":records})
 	if OS.has_feature("web"):
-		var result=JavaScriptBridge.eval("(function(){try{localStorage.setItem('coldwar-study-v1',"+JSON.stringify(raw)+");return true}catch(e){return false}})()")
+		var result=JavaScriptBridge.eval("window.HistoryGame && window.HistoryGame.progress("+JSON.stringify(raw)+")")
 		storage_ok=result==true
 	else:
 		var file=FileAccess.open(SAVE_PATH,FileAccess.WRITE)
@@ -97,6 +97,8 @@ func pick(topic: int, avoid_id: int = -1) -> Dictionary:
 	return selected_q
 
 func record(q: Dictionary, correct: bool, responses: Array) -> void:
+	if OS.has_feature("web") and enabled_save:
+		JavaScriptBridge.eval("window.HistoryGame && window.HistoryGame.answer("+JSON.stringify(str(int(q.id)))+","+JSON.stringify(responses)+")")
 	if correct and q.id in session_seen and q.id not in session_correct:
 		session_correct.append(q.id)
 	var key=str(int(q.id))

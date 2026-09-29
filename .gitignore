@@ -1,6 +1,11 @@
 # Godot 4+ specific ignores
 .godot/
 build/
+tmp/
+integration/
+# One-off, hash-guarded cross-workspace application helpers (kept locally).
+tools/apply_site_integration.cjs
+tools/stage_site_integration.cjs
 .nomedia
 
 # Godot-specific ignores
