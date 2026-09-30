@@ -63,7 +63,7 @@ var linked_poll = 0.0
 var linked_ready = false
 
 func account_ready() -> bool:
-	return not OS.has_feature("web") or (linked_ready and JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()") == true)
+	return not OS.has_feature("web") or (linked_ready and bool(JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()")))
 
 func _ready() -> void:
 	randomize()
@@ -112,7 +112,7 @@ func _process(delta: float) -> void:
 		linked_poll-=delta
 		if linked_poll<=0:
 			linked_poll=0.5
-			linked_ready=JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()") == true
+			linked_ready=bool(JavaScriptBridge.eval("!!window.HistoryGame && window.HistoryGame.ready()"))
 			if linked_ready:
 				var scope=str(JavaScriptBridge.eval("window.HistoryGame.identity().scope"))
 				if linked_scope!=scope:
@@ -349,7 +349,7 @@ func menu_ui() -> void:
 func start_game(seed_number: int = -1) -> void:
 	if not account_ready():return
 	if OS.has_feature("web"):
-		if JavaScriptBridge.eval("window.HistoryGame.start()") != true:return
+		if not bool(JavaScriptBridge.eval("window.HistoryGame.start()")):return
 	maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
 	player=maze.start
 	facing=Vector2i.RIGHT
