@@ -7,10 +7,12 @@
   const embedded = window.parent !== window && channel;
   let identity = null, ownerScope = null, lastHost = 0, session = null, attempts = 0;
   const pending = new Map();
-  let originalFullscreen;
+  let expanded = false;
   const bridge = window.HistoryGame = {
     ready: () => !!identity && Date.now() - lastHost < 15000,
     identity: () => identity,
+    expanded: () => expanded,
+    returnToView() { post({ type: 'return-to-view' }); },
     start() {
       if (!bridge.ready()) return false;
       if (session) bridge.end('abandoned');
@@ -56,7 +58,7 @@
     }
     if (d.type === 'locked') { identity = null; lastHost = 0; }
     if (d.type === 'accepted') pending.delete(d.eventId);
-    if (d.type === 'fullscreen-unavailable' && originalFullscreen) originalFullscreen();
+    if (d.type === 'viewport') expanded = d.expanded === true;
   });
   function tick() {
     post({ type: 'hello' });
@@ -76,17 +78,19 @@
     const message = document.createElement('p'); message.textContent = '正在核對探索館登入…如連線中斷，請重新連線。';
     const link = document.createElement('a'); link.href = entry.href; link.target = '_top'; link.textContent = '前往探索館登入並返回遊戲';
     gate.append(message, link); document.body.append(gate); tick();
-    // Keep the museum identity/sync strip visible when the game's own fullscreen
-    // control is used. Retain the original mobile Home Screen help as fallback.
-    queueMicrotask(() => {
-      originalFullscreen = window.cwRequestFullscreen;
+    // The host owns viewport expansion, including Safari and standalone.
+    // Do not fall back to native fullscreen or require installation in the iframe.
+    // A microtask can run between DOMContentLoaded listeners. Wait for the
+    // template listener to finish defining its helpers before overriding them.
+    setTimeout(() => {
       window.cwRequestFullscreen = () => {
         const prompt = document.getElementById('cw-fullscreen-help');
         if (prompt) prompt.hidden = true;
         window.cwFullscreenPromptOpen = false;
         post({ type: 'fullscreen' });
       };
-    });
+      window.cwOfferFullscreen = () => { window.cwRequestFullscreen(); return false; };
+    }, 0);
   });
   document.documentElement.classList.add('hq-locked');
   window.addEventListener('beforeunload', event => {

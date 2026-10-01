@@ -267,6 +267,14 @@ func rebuild_ui() -> void:
 		note.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		note.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 		cover.add_child(note)
+		if OS.has_feature("web"):
+			var museum_return=museum_return_button()
+			museum_return.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+			museum_return.offset_left=-museum_return.custom_minimum_size.x/2
+			museum_return.offset_right=museum_return.custom_minimum_size.x/2
+			museum_return.offset_top=-museum_return.custom_minimum_size.y-24
+			museum_return.offset_bottom=-24
+			cover.add_child(museum_return)
 
 func panel_at(rect: Rect2) -> VBoxContainer:
 	var panel=PanelContainer.new()
@@ -337,9 +345,7 @@ func menu_ui() -> void:
 	var actions=row(right)
 	actions.add_child(button("玩法說明",func():help_return="menu";mode="help"; rebuild_ui(),false,54,"help"))
 	actions.add_child(button("重設紀錄",confirm_reset,false,54,"reset_prompt"))
-	var audio_options=row(right)
-	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
-	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
+	audio_toolbar(right)
 	right.add_child(label("已連結探索館 · 完成各局會保存結果與錯題\n同步狀態及登入身分見遊戲上方；共用裝置用完請登出。" if OS.has_feature("web") else "離線版 · 學習紀錄只存於目前裝置。",18,MUTED))
 	var copyright_label=label("Senior Form  /  HKDSE HISTORY\n%d 題・5 種題型・隨機探索" % study.bank.size(),20,TEAL)
 	copyright_label.position=Vector2(40,size.y-86)
@@ -742,14 +748,46 @@ func buy_lamp(key: String) -> void:
 func pause_ui() -> void:
 	var inner=modal("任務暫停", "文件 %d / 3  ·  已答 %d 題  ·  本局編號 %d" % [file_count(),attempts,maze.seed_value])
 	inner.add_child(button("繼續探索",resume,true))
-	var audio_options=row(inner)
-	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
-	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
+	audio_toolbar(inner)
 	if OS.has_feature("web"):
 		inner.add_child(button("全畫面遊玩",request_fullscreen))
 	inner.add_child(button("玩法說明",func():help_return="play";mode="help";rebuild_ui(),false,54,"help"))
 	inner.add_child(label("離開本局會重新生成迷宮；已保存的學習紀錄保留。",22,MUTED))
 	inner.add_child(button("結束本局，返回主頁",show_menu,false,54,"back"))
+
+func museum_return_button() -> Button:
+	var result=button("返回探索館",return_to_museum,false,64,"back")
+	# Godot's minimum canvas size scales on phones. Keep this control at least
+	# 44 CSS pixels high with readable text, including the portrait cover.
+	var scale_factor=1.0
+	if OS.has_feature("web"):
+		var css_height=float(JavaScriptBridge.eval("window.innerHeight"))
+		if css_height>0:scale_factor=maxf(1.0,size.y/css_height)
+	var text_size=maxi(20,int(ceil(16.0*scale_factor)))
+	result.add_theme_font_size_override("font_size",text_size)
+	result.custom_minimum_size=Vector2(text_size*6+32,maxf(64,ceil(44.0*scale_factor)))
+	return result
+
+func audio_toolbar(parent: Node) -> void:
+	var audio_options=HFlowContainer.new()
+	audio_options.add_theme_constant_override("h_separation",12)
+	audio_options.add_theme_constant_override("v_separation",10)
+	audio_options.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	parent.add_child(audio_options)
+	audio_options.add_child(button("音樂："+("開" if game_audio.music_enabled else "關"),func():game_audio.toggle_music();rebuild_ui()))
+	audio_options.add_child(button("音效："+("開" if game_audio.effects_enabled else "關"),func():game_audio.toggle_effects();rebuild_ui()))
+	if OS.has_feature("web"):
+		var museum_return=museum_return_button()
+		var toolbar_font=int(museum_return.get_theme_font_size("font_size"))
+		for audio_button in audio_options.get_children():
+			audio_button.add_theme_font_size_override("font_size",toolbar_font)
+			audio_button.custom_minimum_size=Vector2(toolbar_font*4+32,museum_return.custom_minimum_size.y)
+		audio_options.add_child(museum_return)
+
+func return_to_museum() -> void:
+	if OS.has_feature("web"):
+		# Returning changes the host layout; it does not end the current round.
+		JavaScriptBridge.eval("window.HistoryGame && window.HistoryGame.returnToView()")
 
 func play_sound(effect_name: String) -> void:
 	if not test_mode:

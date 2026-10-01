@@ -9,7 +9,7 @@ function launch({ embedded = true, storage = new Map() } = {}) {
   window.parent = embedded ? host : window;
   const location = {search:embedded?'?hqChannel=c':'?studentId=spoof',replace:u=>redirected=u,reload:()=>reloads++};
   const localStorage = {getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)};
-  const context = {window,parent:window.parent,document,location,localStorage,URL,URLSearchParams,crypto:{randomUUID:()=>`event-${++id}`},setInterval:fn=>tick=fn,Date:{now:()=>now},Map,queueMicrotask:fn=>fn()};
+  const context = {window,parent:window.parent,document,location,localStorage,URL,URLSearchParams,crypto:{randomUUID:()=>`event-${++id}`},setInterval:fn=>tick=fn,Date:{now:()=>now},Map,setTimeout:fn=>fn()};
   vm.runInNewContext(fs.readFileSync('web/history-game-bridge.js','utf8'),context);
   const receive = (data, source=host, origin='https://museum.test') => listeners.message({source,origin,data:{protocol:'history-game/1',channel:'c',...data}});
   return {bridge:window.HistoryGame,messages,receive,host,storage,redirect:()=>redirected,reloads:()=>reloads,tick:()=>tick(),domReady:()=>docEvents.DOMContentLoaded(),fullscreen:()=>window.cwRequestFullscreen(),fallbacks:()=>fallbacks,advance:ms=>now+=ms};
@@ -39,9 +39,23 @@ test('anonymous history never imports; a changed account after lock reloads with
  g.receive({type:'locked'});assert.equal(g.bridge.ready(),false);g.receive({type:'identity',identity:{scope:'two:s2'}});assert.equal(g.reloads(),1);assert.equal(g.bridge.ready(),false);
  const other=launch({storage});other.receive({type:'identity',identity:{scope:'two:s2'}});assert.equal(other.bridge.progress(),'');
 });
-test('lost host heartbeat locks gameplay; fullscreen delegates to host and retains mobile fallback',()=>{
+test('lost host heartbeat locks gameplay; fullscreen delegates to host without native fallback',()=>{
  const g=launch();g.domReady();g.receive({type:'identity',identity:{scope:'one:s1'}});
  g.fullscreen();assert.equal(g.messages.at(-1).m.type,'fullscreen');
- g.receive({type:'fullscreen-unavailable'});assert.equal(g.fallbacks(),1);
+ g.receive({type:'fullscreen-unavailable'});assert.equal(g.fallbacks(),0);
  g.advance(15001);assert.equal(g.bridge.ready(),false);assert.equal(g.bridge.start(),false);
+});
+
+test('return preserves the round and rejects unrelated viewport messages',()=>{
+const g=launch();g.domReady();g.receive({type:'identity',identity:{scope:'preview:synthetic'}});
+g.bridge.start();g.bridge.answer('q',[1]);
+g.receive({type:'viewport',expanded:true},{},'https://museum.test');assert.equal(g.bridge.expanded(),false);
+g.receive({type:'viewport',channel:'wrong',expanded:true});assert.equal(g.bridge.expanded(),false);
+g.receive({type:'viewport',expanded:true});assert.equal(g.bridge.expanded(),true);
+g.bridge.returnToView();assert.equal(g.messages.at(-1).m.type,'return-to-view');
+g.receive({type:'viewport',expanded:false});assert.equal(g.bridge.expanded(),false);
+g.bridge.answer('q2',[0]);g.bridge.end();
+const events=g.messages.filter(x=>x.m.type==='event').map(x=>x.m.event);
+assert.equal(events.length,4);assert.equal(events[2].sessionId,events[0].sessionId);
+assert.equal(events[2].sequence,2);assert.equal(events[3].outcome,'completed');assert.equal(g.reloads(),0);
 });
