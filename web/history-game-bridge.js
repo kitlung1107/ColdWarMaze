@@ -26,7 +26,7 @@
       sendEvent({ type: 'start', sessionId: session, sequence: 0, ...(rules?{protocol:'rules-game/1',mapId,mazeVersion}:{}) });
       return true;
     },
-    move(cell){if(!rules||!bridge.ready()||!session||!Number.isInteger(cell)||cell<0||cell>=273)return false;path.push(cell);if(path.length===5)flushPath();return true;},
+    move(cell){if(!rules||!bridge.ready()||!session||!Number.isInteger(cell)||cell<0||cell>=273)return false;path.push(cell);if(path.length===2)flushPath();return true;},
     target(value){if(!rules||!bridge.ready()||!session)return false;flushPath();target=value;return true;},
     answer(questionId, answer) {
       if (!bridge.ready() || !session) return false;

@@ -23,11 +23,11 @@ test('Rules runs bind the published maze, flush routes before door answers and e
  const g=launch({rules:true});g.receive({type:'identity',identity:{scope:'preview:synthetic'}});assert.equal(g.bridge.ready(),false);
  g.receive({type:'identity',identity:{scope:'preview:synthetic',rulesProtocol:'rules-game/1',mazeVersion:'trusted-version'}});
  assert.equal(g.bridge.start('maze-91024','wrong'),false);assert.equal(g.bridge.start('maze-91024','trusted-version'),true);
- for(const cell of [23,24,25,26,27])assert.equal(g.bridge.move(cell),true);
- g.bridge.target({kind:'door',cell:28});g.bridge.answer('1',[1]);g.bridge.move(28);g.bridge.end();
+ for(const cell of [23,24])assert.equal(g.bridge.move(cell),true);
+ g.bridge.target({kind:'door',cell:25});g.bridge.answer('1',[1]);g.bridge.move(25);g.bridge.end();
  const events=g.messages.filter(x=>x.m.type==='event').map(x=>x.m.event);
  assert.deepEqual(JSON.parse(JSON.stringify(events.map(e=>e.sequence))),[0,1,2,3,4]);
- assert.equal(events[0].mazeVersion,'trusted-version');assert.equal(events[1].path.length,5);assert.equal(events[2].attempt,1);assert.equal(events[2].target.cell,28);assert.equal(events[4].attempts,1);
+ assert.equal(events[0].mazeVersion,'trusted-version');assert.equal(events[1].path.length,2);assert.equal(events[2].attempt,1);assert.equal(events[2].target.cell,25);assert.equal(events[4].attempts,1);
  const ids=events.map(e=>e.eventId);g.tick();const replay=g.messages.filter(x=>x.m.type==='event').slice(-5).map(x=>x.m.event);assert.deepEqual(replay.map(e=>e.eventId),ids);
 });
 test('only exact parent, origin and channel can unlock; native fullscreen does not replace identity',()=>{
