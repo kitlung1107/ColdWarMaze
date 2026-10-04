@@ -1,1 +1,1 @@
-window.HISTORY_GAME_CONFIG = {"gameId":"cold-war-maze","version":"62338058eeb29cc92e89b0a4149e767a","host":"https://kitlung1107.github.io/history-quest/"};
+window.HISTORY_GAME_CONFIG = {"gameId":"cold-war-maze","version":"62338058eeb29cc92e89b0a4149e767a","rulesProtocol":"rules-game/1","mazeVersion":"2faae39caf640812ad44514073084536","host":"https://kitlung1107.github.io/history-quest/"};

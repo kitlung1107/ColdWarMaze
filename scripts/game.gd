@@ -355,8 +355,12 @@ func menu_ui() -> void:
 func start_game(seed_number: int = -1) -> void:
 	if not account_ready():return
 	if OS.has_feature("web"):
-		if not bool(JavaScriptBridge.eval("window.HistoryGame.start()")):return
-	maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
+		var release=JSON.parse_string(FileAccess.get_file_as_string("res://data/trusted-mazes.json"))
+		var layout=release.layouts[randi_range(0,release.layouts.size()-1)]
+		if not bool(JavaScriptBridge.eval("window.HistoryGame.start("+JSON.stringify(layout.id)+","+JSON.stringify(release.mazeVersion)+")")):return
+		maze.load_trusted(layout)
+	else:
+		maze.generate(randi_range(1,999999) if seed_number<0 else seed_number)
 	player=maze.start
 	facing=Vector2i.RIGHT
 	coins=0
@@ -461,6 +465,8 @@ func move(direction: Vector2i) -> void:
 		play_sound("bump")
 		return
 	player=next
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.HistoryGame.move("+str(maze.to_cell(player))+")")
 	play_sound("footstep")
 	if maze.files.has(player) and not maze.files[player]:
 		maze.files[player]=true
@@ -496,6 +502,8 @@ func interact() -> void:
 func begin_question(target: Dictionary, avoid_id: int = -1) -> void:
 	play_sound("investigate")
 	context=target
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.HistoryGame.target("+JSON.stringify({"kind":target.kind,"cell":maze.to_cell(target.position)})+")")
 	question=study.pick(topic,avoid_id)
 	if question.is_empty() and topic!=0:
 		question=study.pick(0,avoid_id)

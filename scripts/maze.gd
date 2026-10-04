@@ -12,6 +12,26 @@ var start = Vector2i(1, 1)
 var finish = Vector2i.ZERO
 var seed_value = 0
 
+func load_trusted(data: Dictionary) -> void:
+	seed_value=int(data.seed)
+	floors.clear()
+	doors.clear()
+	rewards.clear()
+	files.clear()
+	start=from_cell(int(data.start))
+	finish=from_cell(int(data.finish))
+	for cell in data.floors:floors[from_cell(int(cell))]=true
+	for cell in data.doors:doors[from_cell(int(cell))]=false
+	for cell in data.files:files[from_cell(int(cell))]=false
+	for kind in ["chests","towers","shortcuts"]:
+		for cell in data[kind]:rewards[from_cell(int(cell))]={"kind":{"chests":"chest","towers":"tower","shortcuts":"shortcut"}[kind],"state":0}
+
+func from_cell(cell: int) -> Vector2i:
+	return Vector2i(cell % W, cell / W)
+
+func to_cell(cell: Vector2i) -> int:
+	return cell.y*W+cell.x
+
 func generate(value: int) -> void:
 	seed_value = value
 	rng.seed = value

@@ -8,28 +8,38 @@
   let identity = null, ownerScope = null, lastHost = 0, session = null, attempts = 0;
   const pending = new Map();
   let expanded = false;
+  let step=0, path=[], target=null;
+  const rules = config.rulesProtocol === 'rules-game/1';
+  function flushPath(){if(!path.length)return;sendEvent({protocol:'rules-game/1',type:'route',sessionId:session,path,sequence:++step});path=[];}
   const bridge = window.HistoryGame = {
-    ready: () => !!identity && Date.now() - lastHost < 15000,
+    ready: () => !!identity && Date.now() - lastHost < 15000 && (!rules || identity.rulesProtocol===config.rulesProtocol && identity.mazeVersion===config.mazeVersion),
     identity: () => identity,
     expanded: () => expanded,
     returnToView() { post({ type: 'return-to-view' }); },
-    start() {
+    start(mapId, mazeVersion) {
       if (!bridge.ready()) return false;
+      if(rules && (!/^maze-[0-9]+$/.test(mapId) || mazeVersion!==config.mazeVersion))return false;
       if (session) bridge.end('abandoned');
       session = crypto.randomUUID();
       attempts = 0;
-      sendEvent({ type: 'start', sessionId: session, sequence: 0 });
+      step=0;path=[];target=null;
+      sendEvent({ type: 'start', sessionId: session, sequence: 0, ...(rules?{protocol:'rules-game/1',mapId,mazeVersion}:{}) });
       return true;
     },
+    move(cell){if(!rules||!bridge.ready()||!session||!Number.isInteger(cell)||cell<0||cell>=273)return false;path.push(cell);if(path.length===5)flushPath();return true;},
+    target(value){if(!rules||!bridge.ready()||!session)return false;flushPath();target=value;return true;},
     answer(questionId, answer) {
       if (!bridge.ready() || !session) return false;
+      if(rules&&!target)return false;
+      if(rules)flushPath();
       attempts++;
-      sendEvent({ type: 'answer', sessionId: session, questionId: String(questionId), answer, sequence: attempts });
+      sendEvent({ type: 'answer', sessionId: session, questionId: String(questionId), answer, sequence: rules?++step:attempts,...(rules?{protocol:'rules-game/1',attempt:attempts,target}:{}) });
       return true;
     },
     end(outcome = 'completed') {
       if (!session) return;
-      sendEvent({ type: 'end', sessionId: session, outcome, attempts, sequence: attempts + 1 });
+      if(rules)flushPath();
+      sendEvent({ type: 'end', sessionId: session, outcome, attempts, sequence: rules?++step:attempts + 1,...(rules?{protocol:'rules-game/1'}:{}) });
       session = null;
     },
     progress(value) {

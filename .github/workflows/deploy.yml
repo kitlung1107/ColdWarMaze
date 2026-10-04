@@ -2,7 +2,7 @@ name: Build and deploy Godot game
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/rules-verified-completion]
   workflow_dispatch:
 
 permissions:
@@ -42,6 +42,7 @@ jobs:
       - name: Verify museum game protocol and bank version
         run: |
           node tools/prepare_game_integration.cjs --check
+          node tools/prepare_trusted_mazes.cjs --check
           node tests/test_history_bridge.cjs
 
       - name: Test maze and question bank
@@ -49,6 +50,9 @@ jobs:
 
       - name: Test complete game flow
         run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_flow.gd
+
+      - name: Test published trusted maze compatibility
+        run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_trusted_mazes.gd
 
       - name: Test music and sound effects
         run: Godot_v${GODOT_VERSION}-stable_linux.x86_64 --headless --path . --script res://tests/test_audio.gd
@@ -78,6 +82,7 @@ jobs:
           path: ${{ runner.temp }}/web
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
     permissions:

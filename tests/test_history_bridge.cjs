@@ -1,11 +1,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm');
-function launch({ embedded = true, storage = new Map() } = {}) {
+function launch({ embedded = true, storage = new Map(),rules=false } = {}) {
   const listeners = {}, docEvents = {}, nodes = {}, messages = [], classes = new Set(); let id = 0, redirected, reloads = 0, tick, now = 0, fallbacks = 0;
   const host = { postMessage: (m,o) => messages.push({m,o}) };
   const document = { documentElement: { classList: { add: x=>classes.add(x), toggle: (x,v)=>v?classes.add(x):classes.delete(x) } }, addEventListener:(name,fn)=>docEvents[name]=fn, getElementById:id=>nodes[id]||null, createElement:()=>({append(){}}), head:{append(){}}, body:{append:node=>nodes[node.id]=node} };
   const window = { HISTORY_GAME_CONFIG: {gameId:'g', version:'v',host:'https://museum.test/'}, addEventListener:(name,fn)=>listeners[name]=fn, cwRequestFullscreen:()=>fallbacks++ };
+  if(rules)Object.assign(window.HISTORY_GAME_CONFIG,{rulesProtocol:'rules-game/1',mazeVersion:'trusted-version'});
   window.parent = embedded ? host : window;
   const location = {search:embedded?'?hqChannel=c':'?studentId=spoof',replace:u=>redirected=u,reload:()=>reloads++};
   const localStorage = {getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)};
@@ -16,6 +17,18 @@ function launch({ embedded = true, storage = new Map() } = {}) {
 }
 test('direct URL redirects through registered museum; spoof student URL is ignored',()=>{
  const game=launch({embedded:false}); assert.equal(game.redirect(),'https://museum.test/?game=g'); assert.equal(game.bridge.start(),false);
+});
+
+test('Rules runs bind the published maze, flush routes before door answers and exit, and use one monotonic event sequence',()=>{
+ const g=launch({rules:true});g.receive({type:'identity',identity:{scope:'preview:synthetic'}});assert.equal(g.bridge.ready(),false);
+ g.receive({type:'identity',identity:{scope:'preview:synthetic',rulesProtocol:'rules-game/1',mazeVersion:'trusted-version'}});
+ assert.equal(g.bridge.start('maze-91024','wrong'),false);assert.equal(g.bridge.start('maze-91024','trusted-version'),true);
+ for(const cell of [23,24,25,26,27])assert.equal(g.bridge.move(cell),true);
+ g.bridge.target({kind:'door',cell:28});g.bridge.answer('1',[1]);g.bridge.move(28);g.bridge.end();
+ const events=g.messages.filter(x=>x.m.type==='event').map(x=>x.m.event);
+ assert.deepEqual(JSON.parse(JSON.stringify(events.map(e=>e.sequence))),[0,1,2,3,4]);
+ assert.equal(events[0].mazeVersion,'trusted-version');assert.equal(events[1].path.length,5);assert.equal(events[2].attempt,1);assert.equal(events[2].target.cell,28);assert.equal(events[4].attempts,1);
+ const ids=events.map(e=>e.eventId);g.tick();const replay=g.messages.filter(x=>x.m.type==='event').slice(-5).map(x=>x.m.event);assert.deepEqual(replay.map(e=>e.eventId),ids);
 });
 test('only exact parent, origin and channel can unlock; native fullscreen does not replace identity',()=>{
  const game=launch();
